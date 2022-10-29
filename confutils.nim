@@ -829,9 +829,21 @@ proc addConfigFile*(secondarySources: auto,
     raise newException(ConfigurationError,
       "Failed to read config file at '" & string(path) & "': " & err.msg)
 
+var getCLIParams*: proc(): seq[TaintedString]
+
+# On Posix there is no portable way to get the command
+# line from a DLL and thus the proc isn't defined in this environment.
+# See https://nim-lang.org/docs/os.html#commandLineParams
+when declared(paramCount):
+  getCLIParams = commandLineParams
+else:
+  getCLIParams = proc(): seq[TaintedString] =
+    var emptyTaintedSeq: seq[TaintedString]
+    return emptyTaintedSeq
+ 
 proc loadImpl[C, SecondarySources](
     Configuration: typedesc[C],
-    cmdLine = commandLineParams(),
+    cmdLine = getCLIParams(),
     version = "",
     copyrightBanner = "",
     printUsage = true,
@@ -1079,7 +1091,7 @@ proc loadImpl[C, SecondarySources](
 
 template load*(
     Configuration: type,
-    cmdLine = commandLineParams(),
+    cmdLine = getCLIParams(),
     version = "",
     copyrightBanner = "",
     printUsage = true,
@@ -1186,4 +1198,5 @@ func load*(f: TypedInputFile): f.ContentType =
   else:
     mixin loadFile
     loadFile(f.Format, f.string, f.ContentType)
+
 
